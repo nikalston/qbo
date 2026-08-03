@@ -41,7 +41,6 @@ def main():
     data = load(csv_path)
     n_items = sum(len(s["items"]) for s in data)
     blob = json.dumps(data, indent=2, ensure_ascii=False)
-    stamp = hashlib.sha1(blob.encode("utf-8")).hexdigest()[:8]
 
     # --- inject into index.html ---
     idx = os.path.join(HERE, "index.html")
@@ -61,7 +60,8 @@ def main():
         sys.exit("could not find the ITEMS_START / ITEMS_END markers in index.html")
     open(idx, "w", encoding="utf-8").write(html)
 
-    # --- bump the cache name ---
+    # --- bump the cache name (hash full HTML so any code change busts cache) ---
+    stamp = hashlib.sha1(html.encode("utf-8")).hexdigest()[:8]
     swp = os.path.join(HERE, "sw.js")
     sw = open(swp, encoding="utf-8").read()
     sw = re.sub(r"const CACHE = '[^']*';", f"const CACHE = 'qbo-{stamp}';", sw, count=1)
