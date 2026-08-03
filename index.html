@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>Quality Order</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Quality">
+<meta name="theme-color" content="#0F1418">
+<link rel="apple-touch-icon" href="icon-180.png">
+<style>
+:root{
+  --bg:#0F1418;
+  --surface:#19212A;
+  --surface-hi:#212C37;
+  --line:#2C3945;
+  --text:#E8EFF5;
+  --muted:#8697A6;
+  --amber:#F2A93B;
+  --amber-dim:#7A5A20;
+  --green:#4BC07A;
+  --danger:#E56A5A;
+  --tap:52px;
+  --header-h:96px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font:400 16px/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  padding-bottom:calc(96px + env(safe-area-inset-bottom));
+  -webkit-user-select:none;user-select:none;
+  overscroll-behavior-y:contain;
+}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+
+/* ---- header ---- */
+.hdr{
+  position:sticky;top:0;z-index:30;
+  background:rgba(15,20,24,.92);
+  backdrop-filter:saturate(1.4) blur(12px);
+  -webkit-backdrop-filter:saturate(1.4) blur(12px);
+  border-bottom:1px solid var(--line);
+  padding:calc(10px + env(safe-area-inset-top)) 16px 10px;
+}
+.hdr-top{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.brand{
+  font-size:13px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--amber);
+}
+.datefield{
+  font-size:13px;color:var(--muted);background:transparent;border:none;
+  text-align:right;width:130px;padding:2px 0;
+  font-variant-numeric:tabular-nums;
+}
+.datefield:focus{outline:none;color:var(--text)}
+.tally{display:flex;align-items:baseline;gap:8px;margin-top:6px}
+.tally-num{
+  font-size:30px;font-weight:700;letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums;line-height:1;
+}
+.tally-lbl{font-size:13px;color:var(--muted)}
+.tally-sep{color:var(--line)}
+
+/* ---- sections ---- */
+.sec-h{
+  position:sticky;top:var(--header-h);z-index:20;
+  background:var(--bg);
+  border-top:1px solid var(--line);
+  border-bottom:1px solid var(--line);
+  padding:9px 16px;
+  font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--muted);
+  display:flex;justify-content:space-between;align-items:center;
+}
+.sec-count{color:var(--amber);letter-spacing:.06em}
+.sec-count:empty{display:none}
+
+/* ---- rows ---- */
+.row{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 16px 8px 13px;
+  border-bottom:1px solid var(--line);
+  border-left:3px solid transparent;
+  min-height:var(--tap);
+}
+.row.on{border-left-color:var(--amber);background:var(--surface)}
+.sku{
+  flex:1;min-width:0;
+  font-size:14.5px;letter-spacing:.01em;
+  text-transform:uppercase;
+  color:var(--muted);
+}
+.row.on .sku{color:var(--text)}
+.step{display:flex;align-items:center;gap:2px;flex:none}
+.step button{
+  width:44px;height:44px;border-radius:11px;
+  background:var(--surface-hi);
+  font-size:22px;font-weight:600;line-height:1;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--muted);
+}
+.step button:active{background:var(--amber);color:#0F1418}
+.step button:disabled{opacity:.28}
+.qty{
+  width:52px;height:44px;
+  background:transparent;border:none;
+  text-align:center;
+  font-size:19px;font-weight:700;
+  font-variant-numeric:tabular-nums;
+  color:var(--muted);
+  border-radius:9px;
+}
+.row.on .qty{color:var(--amber)}
+.qty:focus{outline:2px solid var(--amber);background:var(--surface-hi);color:var(--text)}
+
+/* ---- bottom bar ---- */
+.bar{
+  position:fixed;left:0;right:0;bottom:0;z-index:40;
+  display:flex;gap:10px;align-items:center;
+  padding:10px 14px calc(10px + env(safe-area-inset-bottom));
+  background:rgba(15,20,24,.94);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  border-top:1px solid var(--line);
+}
+.toggle{
+  flex:none;height:48px;padding:0 15px;border-radius:12px;
+  background:var(--surface-hi);color:var(--muted);
+  font-size:13px;font-weight:600;letter-spacing:.02em;
+}
+.toggle[aria-pressed="true"]{background:var(--amber-dim);color:var(--amber)}
+.primary{
+  flex:1;height:48px;border-radius:12px;
+  background:var(--amber);color:#0F1418;
+  font-size:16px;font-weight:700;letter-spacing:.01em;
+}
+.primary:disabled{background:var(--surface-hi);color:var(--muted)}
+
+/* ---- review sheet ---- */
+.scrim{
+  position:fixed;inset:0;z-index:50;
+  background:rgba(0,0,0,.6);
+  display:none;
+}
+.scrim.open{display:block}
+.sheet{
+  position:absolute;left:0;right:0;bottom:0;
+  max-height:88vh;display:flex;flex-direction:column;
+  background:var(--surface);
+  border-radius:20px 20px 0 0;
+  border-top:1px solid var(--line);
+  padding-bottom:env(safe-area-inset-bottom);
+}
+.sheet-h{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:16px 18px 12px;border-bottom:1px solid var(--line);
+}
+.sheet-h h2{margin:0;font-size:16px;font-weight:700;letter-spacing:.01em}
+.close{font-size:14px;color:var(--muted);padding:6px}
+.tape{
+  flex:1;overflow-y:auto;margin:0;padding:16px 18px;
+  font:400 13.5px/1.65 ui-monospace,SFMono-Regular,Menlo,monospace;
+  white-space:pre-wrap;word-break:break-word;
+  color:var(--text);
+  -webkit-user-select:text;user-select:text;
+}
+.tape .zero{color:var(--muted)}
+.sheet-f{display:flex;gap:10px;padding:12px 18px 16px;border-top:1px solid var(--line)}
+.sheet-f button{
+  flex:1;height:46px;border-radius:12px;
+  background:var(--surface-hi);font-size:14px;font-weight:600;
+}
+.sheet-f .go{background:var(--amber);color:#0F1418}
+.sheet-f .wipe{color:var(--danger)}
+.empty{padding:32px 18px;color:var(--muted);font-size:14px;text-align:center}
+.toast{
+  position:fixed;left:50%;bottom:104px;transform:translateX(-50%);
+  z-index:60;padding:10px 18px;border-radius:999px;
+  background:var(--green);color:#0F1418;
+  font-size:13.5px;font-weight:700;
+  opacity:0;pointer-events:none;transition:opacity .18s;
+}
+.toast.show{opacity:1}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="hdr-top">
+    <span class="brand">Quality Beverage</span>
+    <input class="datefield" id="date" type="text" inputmode="text" spellcheck="false" placeholder="date">
+  </div>
+  <div class="tally">
+    <span class="tally-num" id="cases">0</span>
+    <span class="tally-lbl">cases</span>
+    <span class="tally-sep">/</span>
+    <span class="tally-lbl"><span id="lines">0</span> lines</span>
+  </div>
+</header>
+
+<main id="list"></main>
+
+<nav class="bar">
+  <button class="toggle" id="filter" aria-pressed="false">Ordered only</button>
+  <button class="primary" id="review" disabled>Review order</button>
+</nav>
+
+<div class="scrim" id="scrim">
+  <div class="sheet" role="dialog" aria-modal="true" aria-label="Order review">
+    <div class="sheet-h">
+      <h2>Order</h2>
+      <button class="close" id="close">Done</button>
+    </div>
+    <pre class="tape" id="tape"></pre>
+    <div class="sheet-f">
+      <button class="wipe" id="wipe">Clear</button>
+      <button id="share">Share</button>
+      <button class="go" id="copy">Copy</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ITEMS_START — regenerate with build_pwa.py, do not hand-edit between markers
+const ITEMS = [
+  {
+    "name": "BUD / BUD LIGHT",
+    "items": [
+      "BUD LIGHT 2/12 CAN 12oz",
+      "BUD LIGHT 2/12 NR 12oz",
+      "BUD LIGHT 4/6 CAN 12oz",
+      "BUD LIGHT 4/6 NR 12oz",
+      "BUD LIGHT LIME 4/6 NR",
+      "BUD ZERO 2/12 CAN 12oz",
+      "BUDWEISER 2/12 CAN 12oz",
+      "BUDWEISER 30/CAN 12oz",
+      "BUDWEISER 4/6 CAN 12oz",
+      "BUSCH LIGHT 30/CAN 12oz",
+      "BUSCH N/A 2/12 CAN 12oz"
+    ]
+  },
+  {
+    "name": "ROLLING ROCK",
+    "items": [
+      "ROLLING ROCK 4/6 NR 12oz",
+      "ROLLING ROCK 18/CAN 12oz"
+    ]
+  },
+  {
+    "name": "MICH ULTRA",
+    "items": [
+      "MICH ULTRA 2/12 CAN 12oz",
+      "MICH ULTRA 2/12 NR 12oz",
+      "MICH ULTRA 18/CAN 12oz",
+      "MICH ULTRA ORGANIC PP 4/6 NR",
+      "MICH ULTRA ZERO 2/12 CAN 12oz",
+      "MICH ULTRA ZERO LIME NA 4/6 NR"
+    ]
+  },
+  {
+    "name": "STELLA",
+    "items": [
+      "STELLA 2/12 NR 11.2oz",
+      "STELLA 4/6 NR 11.2oz",
+      "STELLA ARTOIS 25oz CAN"
+    ]
+  },
+  {
+    "name": "HOEGAARDEN",
+    "items": [
+      "HOEGAARDEN 4/6 NR 11.2oz"
+    ]
+  },
+  {
+    "name": "KONA",
+    "items": [
+      "KONA BIG WAVE GOLDEN ALE 4/6"
+    ]
+  },
+  {
+    "name": "WORMTOWN",
+    "items": [
+      "WORMTOWN BE HOPPY 2/12 CAN 12oz",
+      "WORMTOWN BE HOPPY 4/6 NR 12oz"
+    ]
+  },
+  {
+    "name": "NUTRL",
+    "items": [
+      "NUTRL CRAN VP 3/8 CAN 12oz",
+      "NUTRL FRUIT VP 3/8 CAN 12oz",
+      "NUTRL LEMONADE VP 3/8 CAN",
+      "NUTRL BLUEBERRY 4/CAN"
+    ]
+  },
+  {
+    "name": "CUTWATER",
+    "items": [
+      "CUTWATER LIME MARGARITA CANS",
+      "CUTWATER MANGO MARGARITA CANS",
+      "CUTWATER LEMON DROP MARTINI CANS",
+      "CUTWATER TIKI RUM MAI TAI CANS"
+    ]
+  },
+  {
+    "name": "SIERRA NEVADA",
+    "items": [
+      "SIERRA NEVADA PALE ALE 2/12 NR",
+      "SIERRA NEVADA HAZY IPA 4/6 CAN",
+      "SIERRA NEVADA SUMMER 4/6 CAN",
+      "SIERRA NEVADA CITRA LIL THING"
+    ]
+  },
+  {
+    "name": "N/A & SINGLES",
+    "items": [
+      "O'DOULS 4/6 NR",
+      "MASSHOLE LIGHT 12/CAN",
+      "KIRIN ICHIBAN 6PK BOTTLES"
+    ]
+  }
+];
+// ITEMS_END
+
+const KEY = 'qbo.v1';
+const $ = id => document.getElementById(id);
+
+let state = {date:'', qty:{}};
+try { Object.assign(state, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch(e){}
+if (!state.qty) state.qty = {};
+if (!state.date) state.date = new Date().toLocaleDateString('en-US',{month:'long',day:'numeric'});
+
+let filtered = false;
+const save = () => { try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){} };
+const qtyOf = sku => state.qty[sku] || 0;
+
+/* ---------- render ---------- */
+function build(){
+  const list = $('list');
+  list.textContent = '';
+  let shown = 0;
+
+  for (const sec of ITEMS){
+    const rows = sec.items.filter(sku => !filtered || qtyOf(sku) > 0);
+    if (!rows.length) continue;
+    shown += rows.length;
+
+    const h = document.createElement('div');
+    h.className = 'sec-h';
+    const n = sec.items.reduce((t,s)=>t+qtyOf(s),0);
+    h.innerHTML = '<span>'+sec.name+'</span><span class="sec-count">'+(n?n:'')+'</span>';
+    h.dataset.sec = sec.name;
+    list.appendChild(h);
+
+    for (const sku of rows) list.appendChild(rowEl(sku));
+  }
+
+  if (!shown){
+    const e = document.createElement('p');
+    e.className = 'empty';
+    e.textContent = 'Nothing ordered yet. Turn off "Ordered only" to see the full list.';
+    list.appendChild(e);
+  }
+  tally();
+}
+
+function rowEl(sku){
+  const q = qtyOf(sku);
+  const row = document.createElement('div');
+  row.className = 'row' + (q ? ' on' : '');
+  row.dataset.sku = sku;
+
+  const name = document.createElement('div');
+  name.className = 'sku';
+  name.textContent = sku;
+
+  const step = document.createElement('div');
+  step.className = 'step';
+
+  const minus = document.createElement('button');
+  minus.type = 'button'; minus.textContent = '\u2212';
+  minus.setAttribute('aria-label','Remove one ' + sku);
+  minus.disabled = q === 0;
+  minus.addEventListener('click', () => bump(sku, -1));
+
+  const input = document.createElement('input');
+  input.className = 'qty'; input.type = 'text';
+  input.inputMode = 'numeric'; input.pattern = '[0-9]*';
+  input.value = q; input.setAttribute('aria-label', sku + ' cases');
+  input.addEventListener('focus', () => input.select());
+  input.addEventListener('input', () => {
+    const v = Math.max(0, Math.min(999, parseInt(input.value.replace(/\D/g,''),10) || 0));
+    setQty(sku, v, row, input, minus);
+  });
+  input.addEventListener('blur', () => { input.value = qtyOf(sku); });
+
+  const plus = document.createElement('button');
+  plus.type = 'button'; plus.textContent = '+';
+  plus.setAttribute('aria-label','Add one ' + sku);
+  plus.addEventListener('click', () => bump(sku, 1));
+
+  step.append(minus, input, plus);
+  row.append(name, step);
+  return row;
+}
+
+function bump(sku, d){
+  const row = document.querySelector('.row[data-sku="' + cssEsc(sku) + '"]');
+  if (!row) return;
+  const input = row.querySelector('.qty');
+  const minus = row.querySelector('.step button');
+  setQty(sku, Math.max(0, qtyOf(sku) + d), row, input, minus);
+  input.value = qtyOf(sku);
+}
+
+function setQty(sku, v, row, input, minus){
+  if (v > 0) state.qty[sku] = v; else delete state.qty[sku];
+  save();
+  row.classList.toggle('on', v > 0);
+  minus.disabled = v === 0;
+  const h = sectionHeaderFor(sku);
+  if (h){
+    const sec = ITEMS.find(s => s.name === h.dataset.sec);
+    const n = sec.items.reduce((t,s)=>t+qtyOf(s),0);
+    h.querySelector('.sec-count').textContent = n ? n : '';
+  }
+  tally();
+}
+
+function sectionHeaderFor(sku){
+  const sec = ITEMS.find(s => s.items.includes(sku));
+  if (!sec) return null;
+  return [...document.querySelectorAll('.sec-h')].find(h => h.dataset.sec === sec.name);
+}
+
+function cssEsc(s){ return s.replace(/["\\]/g, '\\$&'); }
+
+function tally(){
+  const lines = Object.keys(state.qty).length;
+  const cases = Object.values(state.qty).reduce((a,b)=>a+b,0);
+  $('cases').textContent = cases;
+  $('lines').textContent = lines;
+  $('review').disabled = lines === 0;
+}
+
+/* ---------- export ---------- */
+function orderText(){
+  const out = ['Quality Order - ' + (state.date || '')];
+  let cases = 0;
+  for (const sec of ITEMS){
+    const picked = sec.items.filter(s => qtyOf(s) > 0);
+    if (!picked.length) continue;
+    out.push('');
+    for (const s of picked){ out.push(qtyOf(s) + ' - ' + s); cases += qtyOf(s); }
+  }
+  out.push('', '--', cases + ' cases / ' + Object.keys(state.qty).length + ' lines');
+  return out.join('\n');
+}
+
+function toast(msg){
+  const t = $('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._t); t._t = setTimeout(()=>t.classList.remove('show'), 1600);
+}
+
+/* ---------- wiring ---------- */
+$('date').value = state.date;
+$('date').addEventListener('input', e => { state.date = e.target.value; save(); });
+
+$('filter').addEventListener('click', e => {
+  filtered = !filtered;
+  e.currentTarget.setAttribute('aria-pressed', String(filtered));
+  build();
+  window.scrollTo(0,0);
+});
+
+$('review').addEventListener('click', () => {
+  $('tape').textContent = orderText();
+  $('scrim').classList.add('open');
+});
+$('close').addEventListener('click', () => $('scrim').classList.remove('open'));
+$('scrim').addEventListener('click', e => { if (e.target === $('scrim')) $('scrim').classList.remove('open'); });
+
+$('copy').addEventListener('click', async () => {
+  const txt = orderText();
+  try { await navigator.clipboard.writeText(txt); toast('Copied'); }
+  catch(e){
+    const ta = document.createElement('textarea');
+    ta.value = txt; document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); toast('Copied'); }catch(_){ toast('Copy failed'); }
+    ta.remove();
+  }
+});
+
+$('share').addEventListener('click', async () => {
+  const txt = orderText();
+  if (navigator.share){ try{ await navigator.share({title:'Quality Order', text:txt}); }catch(e){} }
+  else toast('Sharing not available here');
+});
+
+$('wipe').addEventListener('click', () => {
+  if (!confirm('Clear all quantities? This cannot be undone.')) return;
+  state.qty = {}; save();
+  $('scrim').classList.remove('open');
+  filtered = false;
+  $('filter').setAttribute('aria-pressed','false');
+  build();
+  window.scrollTo(0,0);
+  toast('Order cleared');
+});
+
+/* keep sticky section headers pinned right under the real header height,
+   which varies with the iPhone safe-area inset */
+function syncHeaderH(){
+  document.documentElement.style.setProperty('--header-h',
+    document.querySelector('.hdr').offsetHeight + 'px');
+}
+syncHeaderH();
+window.addEventListener('resize', syncHeaderH);
+window.addEventListener('orientationchange', () => setTimeout(syncHeaderH, 250));
+
+build();
+
+if ('serviceWorker' in navigator){
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>
