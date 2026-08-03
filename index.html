@@ -398,13 +398,49 @@ const ITEMS = [
 // ITEMS_END
 
 const KEY = 'qbo.v1';
+const DB = 'qbo'; const STORE = 'kv';
 const $ = id => document.getElementById(id);
 
+function openDB(){
+  return new Promise((ok,fail) => {
+    const req = indexedDB.open(DB, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore(STORE);
+    req.onsuccess = () => ok(req.result);
+    req.onerror = () => fail(req.error);
+  });
+}
+function idbGet(db){
+  return new Promise((ok) => {
+    const tx = db.transaction(STORE, 'readonly');
+    const req = tx.objectStore(STORE).get(KEY);
+    req.onsuccess = () => ok(req.result);
+    req.onerror = () => ok(undefined);
+  });
+}
+function idbPut(db, val){
+  const tx = db.transaction(STORE, 'readwrite');
+  tx.objectStore(STORE).put(val, KEY);
+}
+
+let _db = null;
 let state = {date:'', qty:{}, custom:[]};
 try { Object.assign(state, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch(e){}
 if (!state.qty) state.qty = {};
 if (!state.custom) state.custom = [];
 if (!state.date) state.date = new Date().toLocaleDateString('en-US',{month:'long',day:'numeric'});
+
+openDB().then(db => {
+  _db = db;
+  return idbGet(db);
+}).then(saved => {
+  if (!saved) return;
+  Object.assign(state, saved);
+  if (!state.qty) state.qty = {};
+  if (!state.custom) state.custom = [];
+  if (!state.date) state.date = new Date().toLocaleDateString('en-US',{month:'long',day:'numeric'});
+  $('date').value = state.date;
+  build();
+}).catch(() => {});
 
 function mergedItems(){
   const merged = ITEMS.map(s => ({name:s.name, items:s.items.slice()}));
@@ -418,7 +454,10 @@ function mergedItems(){
 function isCustom(sku){ return state.custom.some(c => c.item === sku); }
 
 let filtered = false;
-const save = () => { try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){} };
+function save(){
+  try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){}
+  if (_db) try{ idbPut(_db, JSON.parse(JSON.stringify(state))); }catch(e){}
+}
 const qtyOf = sku => state.qty[sku] || 0;
 
 /* ---------- render ---------- */
