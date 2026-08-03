@@ -80,12 +80,23 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 .sec-count:empty{display:none}
 
 /* ---- rows ---- */
+.row-wrap{position:relative;overflow:hidden}
+.row-del{
+  position:absolute;right:0;top:0;bottom:0;width:80px;
+  background:var(--danger);color:#FFFFFF;
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  border:none;cursor:pointer;
+}
 .row{
+  position:relative;
   display:flex;align-items:center;gap:10px;
   padding:8px 16px 8px 13px;
   border-bottom:1px solid var(--line);
   border-left:3px solid transparent;
   min-height:var(--tap);
+  background:var(--bg);
+  transition:transform .2s;
 }
 .row.on{border-left-color:var(--amber);background:var(--surface)}
 .sku{
@@ -211,13 +222,6 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 }
 .add-sheet .sheet-f .go{background:var(--amber);color:#FFFFFF}
 .add-sheet .sheet-f .go:disabled{background:var(--surface-hi);color:var(--muted)}
-.row .del-custom{
-  display:none;width:32px;height:32px;border-radius:8px;
-  font-size:16px;color:var(--danger);flex:none;
-  align-items:center;justify-content:center;
-  touch-action:manipulation;
-}
-.row.custom .del-custom{display:flex}
 .toast{
   position:fixed;left:50%;bottom:104px;transform:translateX(-50%);
   z-index:60;padding:10px 18px;border-radius:999px;
@@ -311,7 +315,9 @@ const ITEMS = [
       "BUDWEISER 30/CAN 12oz",
       "BUDWEISER 4/6 CAN 12oz",
       "BUSCH LIGHT 30/CAN 12oz",
-      "BUSCH N/A 2/12 CAN 12oz"
+      "BUSCH N/A 2/12 CAN 12oz",
+      "RRRRTR",
+      "SSSSSSSSSS"
     ]
   },
   {
@@ -486,13 +492,14 @@ let state = {date:'', qty:{}, custom:[]};
 try { Object.assign(state, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch(e){}
 if (!state.qty) state.qty = {};
 if (!state.custom) state.custom = [];
+if (!state.deleted) state.deleted = [];
 if (!state.date) state.date = new Date().toLocaleDateString('en-US',{month:'long',day:'numeric'});
 
-// remove custom entries already baked into ITEMS
 state.custom = state.custom.filter(c => {
   const s = ITEMS.find(s => s.name === c.section);
   return !s || !s.items.includes(c.item);
 });
+state.deleted = state.deleted.filter(d => ITEMS.some(s => s.items.includes(d)));
 
 openDB().then(db => {
   _db = db;
@@ -502,11 +509,13 @@ openDB().then(db => {
   Object.assign(state, saved);
   if (!state.qty) state.qty = {};
   if (!state.custom) state.custom = [];
+  if (!state.deleted) state.deleted = [];
   if (!state.date) state.date = new Date().toLocaleDateString('en-US',{month:'long',day:'numeric'});
   state.custom = state.custom.filter(c => {
     const s = ITEMS.find(s => s.name === c.section);
     return !s || !s.items.includes(c.item);
   });
+  state.deleted = state.deleted.filter(d => ITEMS.some(s => s.items.includes(d)));
   $('date').value = state.date;
   save(); build();
 }).catch(() => {});
@@ -518,7 +527,9 @@ function mergedItems(){
     if (existing){ if (!existing.items.includes(c.item)) existing.items.push(c.item); }
     else merged.push({name:c.section, items:[c.item]});
   }
-  return merged;
+  const del = state.deleted || [];
+  if (del.length) for (const s of merged) s.items = s.items.filter(i => !del.includes(i));
+  return merged.filter(s => s.items.length > 0);
 }
 function isCustom(sku){ return state.custom.some(c => c.item === sku); }
 
@@ -560,8 +571,15 @@ function build(){
   tally();
 }
 
+let swipedRow = null;
+document.addEventListener('scroll', () => {
+  if (swipedRow){ swipedRow.style.transform = ''; swipedRow = null; }
+}, {passive:true});
+
 function rowEl(sku){
   const q = qtyOf(sku);
+  const wrap = document.createElement('div');
+  wrap.className = 'row-wrap';
   const row = document.createElement('div');
   row.className = 'row' + (q ? ' on' : '');
   row.dataset.sku = sku;
@@ -598,26 +616,53 @@ function rowEl(sku){
   step.append(minus, input, plus);
   row.append(name, step);
 
-  if (isCustom(sku)){
-    row.classList.add('custom');
-    const del = document.createElement('button');
-    del.className = 'del-custom'; del.type = 'button';
-    del.textContent = '×';
-    del.setAttribute('aria-label','Remove custom item ' + sku);
-    del.addEventListener('click', async () => {
-      if (!confirm('Remove "' + sku + '" from the list?')) return;
-      state.custom = state.custom.filter(c => c.item !== sku);
-      delete state.qty[sku];
-      save(); build();
-      if (ghToken()){
-        try { await ghRemoveItem(sku); toast('Removed from list'); }
-        catch(e){ toast('Removed locally'); }
-      }
-    });
-    row.appendChild(del);
-  }
+  const del = document.createElement('button');
+  del.className = 'row-del'; del.type = 'button';
+  del.textContent = 'Delete';
+  del.addEventListener('click', async () => {
+    if (!confirm('Delete "' + sku + '"?')){
+      row.style.transform = ''; swipedRow = null; return;
+    }
+    state.custom = state.custom.filter(c => c.item !== sku);
+    delete state.qty[sku];
+    if (!state.deleted.includes(sku)) state.deleted.push(sku);
+    save(); build();
+    if (!ensureToken()){ toast('Hidden locally'); return; }
+    try { await ghRemoveItem(sku); toast('Deleted'); }
+    catch(e){ toast('Delete failed'); }
+  });
 
-  return row;
+  wrap.append(row, del);
+
+  let startX = 0, startY = 0, swiping = false;
+  row.addEventListener('touchstart', e => {
+    if (e.target.closest('.step')){ startX = null; return; }
+    if (swipedRow && swipedRow !== row){ swipedRow.style.transform = ''; swipedRow = null; }
+    const t = e.touches[0];
+    startX = t.clientX; startY = t.clientY; swiping = false;
+    row.style.transition = 'none';
+  }, {passive:true});
+
+  row.addEventListener('touchmove', e => {
+    if (startX === null) return;
+    const t = e.touches[0];
+    const dx = t.clientX - startX, dy = t.clientY - startY;
+    if (!swiping && Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) swiping = true;
+    if (swiping){
+      e.preventDefault();
+      row.style.transform = 'translateX(' + Math.min(0, Math.max(-80, dx)) + 'px)';
+    }
+  }, {passive:false});
+
+  row.addEventListener('touchend', e => {
+    if (startX === null || !swiping){ row.style.transition = ''; return; }
+    row.style.transition = '';
+    const dx = e.changedTouches[0].clientX - startX;
+    if (dx < -40){ row.style.transform = 'translateX(-80px)'; swipedRow = row; }
+    else { row.style.transform = ''; if (swipedRow === row) swipedRow = null; }
+  });
+
+  return wrap;
 }
 
 function bump(sku, d){
