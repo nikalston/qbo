@@ -399,6 +399,9 @@ const ITEMS = [
 
 const KEY = 'qbo.v1';
 const DB = 'qbo'; const STORE = 'kv';
+const GH_REPO = 'nikalston/qbo';
+const GH_FILE = 'items.csv';
+const GH_TOKEN_KEY = 'qbo.gh_token';
 const $ = id => document.getElementById(id);
 
 function openDB(){
@@ -422,12 +425,74 @@ function idbPut(db, val){
   tx.objectStore(STORE).put(val, KEY);
 }
 
+/* ---------- GitHub sync ---------- */
+function ghToken(){ return localStorage.getItem(GH_TOKEN_KEY); }
+
+function ensureToken(){
+  if (ghToken()) return true;
+  const t = prompt('Paste a GitHub Personal Access Token\n(fine-grained, Contents read+write for nikalston/qbo):');
+  if (t){ localStorage.setItem(GH_TOKEN_KEY, t.trim()); return true; }
+  return false;
+}
+
+function utf8btoa(s){ return btoa(unescape(encodeURIComponent(s))); }
+function utf8atob(s){ return decodeURIComponent(escape(atob(s))); }
+
+async function ghReadCSV(){
+  const r = await fetch('https://api.github.com/repos/'+GH_REPO+'/contents/'+GH_FILE,
+    {headers:{'Authorization':'Bearer '+ghToken()}});
+  if (!r.ok) throw new Error(r.status);
+  const d = await r.json();
+  return {csv: utf8atob(d.content.replace(/\n/g,'')), sha: d.sha};
+}
+
+async function ghCommitCSV(csv, sha, msg){
+  const r = await fetch('https://api.github.com/repos/'+GH_REPO+'/contents/'+GH_FILE,{
+    method:'PUT',
+    headers:{'Authorization':'Bearer '+ghToken(),'Content-Type':'application/json'},
+    body:JSON.stringify({message:msg, content:utf8btoa(csv), sha:sha})
+  });
+  if (!r.ok) throw new Error(r.status);
+}
+
+async function ghAddItem(section, item){
+  const {csv, sha} = await ghReadCSV();
+  await ghCommitCSV(csv.trimEnd()+'\n'+section+','+item+'\n', sha, 'Add '+item);
+}
+
+async function ghRemoveItem(item){
+  const {csv, sha} = await ghReadCSV();
+  const lines = csv.split('\n').filter(l => {
+    const i = l.indexOf(',');
+    return i < 0 || l.slice(i+1).trim().toUpperCase() !== item.toUpperCase();
+  });
+  await ghCommitCSV(lines.join('\n'), sha, 'Remove '+item);
+}
+
+async function syncPending(){
+  if (!ghToken()) return;
+  const pending = state.custom.filter(c => {
+    const s = ITEMS.find(s => s.name === c.section);
+    return !s || !s.items.includes(c.item);
+  });
+  for (const c of pending){
+    try { await ghAddItem(c.section, c.item); } catch(e){ return; }
+  }
+  if (pending.length) toast('Synced to list');
+}
+
 let _db = null;
 let state = {date:'', qty:{}, custom:[]};
 try { Object.assign(state, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch(e){}
 if (!state.qty) state.qty = {};
 if (!state.custom) state.custom = [];
 if (!state.date) state.date = new Date().toLocaleDateString('en-US',{month:'long',day:'numeric'});
+
+// remove custom entries already baked into ITEMS
+state.custom = state.custom.filter(c => {
+  const s = ITEMS.find(s => s.name === c.section);
+  return !s || !s.items.includes(c.item);
+});
 
 openDB().then(db => {
   _db = db;
@@ -438,8 +503,12 @@ openDB().then(db => {
   if (!state.qty) state.qty = {};
   if (!state.custom) state.custom = [];
   if (!state.date) state.date = new Date().toLocaleDateString('en-US',{month:'long',day:'numeric'});
+  state.custom = state.custom.filter(c => {
+    const s = ITEMS.find(s => s.name === c.section);
+    return !s || !s.items.includes(c.item);
+  });
   $('date').value = state.date;
-  build();
+  save(); build();
 }).catch(() => {});
 
 function mergedItems(){
@@ -535,11 +604,15 @@ function rowEl(sku){
     del.className = 'del-custom'; del.type = 'button';
     del.textContent = '×';
     del.setAttribute('aria-label','Remove custom item ' + sku);
-    del.addEventListener('click', () => {
+    del.addEventListener('click', async () => {
       if (!confirm('Remove "' + sku + '" from the list?')) return;
       state.custom = state.custom.filter(c => c.item !== sku);
       delete state.qty[sku];
       save(); build();
+      if (ghToken()){
+        try { await ghRemoveItem(sku); toast('Removed from list'); }
+        catch(e){ toast('Removed locally'); }
+      }
     });
     row.appendChild(del);
   }
@@ -688,17 +761,24 @@ function checkAddReady(){
   $('addSave').disabled = !sec || !$('addItem').value.trim();
 }
 
-$('addSave').addEventListener('click', () => {
+$('addSave').addEventListener('click', async () => {
   const sec = $('addSec').value === '__new__' ? $('newSec').value.trim().toUpperCase() : $('addSec').value;
   const item = $('addItem').value.trim().toUpperCase();
   if (!sec || !item) return;
   const all = mergedItems();
   const existing = all.find(s => s.name === sec);
   if (existing && existing.items.includes(item)){ toast('Already exists'); return; }
+  if (!ensureToken()) return;
   state.custom.push({section:sec, item:item});
   save(); build();
   $('addScrim').classList.remove('open');
-  toast('Added');
+  toast('Saving…');
+  try {
+    await ghAddItem(sec, item);
+    toast('Saved to list');
+  } catch(e){
+    toast('Saved locally — will sync later');
+  }
 });
 
 function closeAdd(){ $('addScrim').classList.remove('open'); }
@@ -717,6 +797,7 @@ window.addEventListener('resize', syncHeaderH);
 window.addEventListener('orientationchange', () => setTimeout(syncHeaderH, 250));
 
 build();
+syncPending();
 
 if ('serviceWorker' in navigator){
   window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
