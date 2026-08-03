@@ -177,6 +177,47 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 .sheet-f .go{background:var(--amber);color:#FFFFFF}
 .sheet-f .wipe{color:var(--danger)}
 .empty{padding:32px 18px;color:var(--muted);font-size:14px;text-align:center}
+
+/* ---- add-item sheet ---- */
+.add-sheet{
+  position:absolute;left:0;right:0;bottom:0;
+  display:flex;flex-direction:column;
+  background:var(--surface);
+  border-radius:20px 20px 0 0;
+  border-top:1px solid var(--line);
+  padding-bottom:env(safe-area-inset-bottom);
+}
+.add-sheet .sheet-h{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:16px 18px 12px;border-bottom:1px solid var(--line);
+}
+.add-sheet h2{margin:0;font-size:16px;font-weight:700;letter-spacing:.01em}
+.add-field{
+  display:flex;flex-direction:column;gap:6px;
+  padding:14px 18px 0;
+}
+.add-field label{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.add-field select,.add-field input[type="text"]{
+  height:44px;border-radius:10px;border:1px solid var(--line);
+  background:var(--bg);color:var(--text);
+  font-size:15px;padding:0 12px;
+  -webkit-appearance:none;appearance:none;
+}
+.add-field select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23666' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
+.add-sheet .sheet-f{display:flex;gap:10px;padding:14px 18px 16px}
+.add-sheet .sheet-f button{
+  flex:1;height:46px;border-radius:12px;
+  background:var(--surface-hi);font-size:14px;font-weight:600;
+}
+.add-sheet .sheet-f .go{background:var(--amber);color:#FFFFFF}
+.add-sheet .sheet-f .go:disabled{background:var(--surface-hi);color:var(--muted)}
+.row .del-custom{
+  display:none;width:32px;height:32px;border-radius:8px;
+  font-size:16px;color:var(--danger);flex:none;
+  align-items:center;justify-content:center;
+  touch-action:manipulation;
+}
+.row.custom .del-custom{display:flex}
 .toast{
   position:fixed;left:50%;bottom:104px;transform:translateX(-50%);
   z-index:60;padding:10px 18px;border-radius:999px;
@@ -207,6 +248,7 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 
 <nav class="bar">
   <button class="toggle" id="filter" aria-pressed="false">Ordered only</button>
+  <button class="toggle" id="addBtn">+ Add</button>
   <button class="primary" id="review" disabled>Review order</button>
 </nav>
 
@@ -221,6 +263,31 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
       <button class="wipe" id="wipe">Clear</button>
       <button id="share">Share</button>
       <button class="go" id="copy">Copy</button>
+    </div>
+  </div>
+</div>
+
+<div class="scrim" id="addScrim">
+  <div class="add-sheet" role="dialog" aria-modal="true" aria-label="Add item">
+    <div class="sheet-h">
+      <h2>Add Item</h2>
+      <button class="close" id="addClose">Cancel</button>
+    </div>
+    <div class="add-field">
+      <label for="addSec">Section</label>
+      <select id="addSec"></select>
+    </div>
+    <div class="add-field" id="newSecWrap" style="display:none">
+      <label for="newSec">New section name</label>
+      <input type="text" id="newSec" placeholder="e.g. CORONA" autocapitalize="characters" spellcheck="false">
+    </div>
+    <div class="add-field">
+      <label for="addItem">Item name</label>
+      <input type="text" id="addItem" placeholder="e.g. CORONA EXTRA 2/12 NR" autocapitalize="characters" spellcheck="false">
+    </div>
+    <div class="sheet-f">
+      <button class="close" id="addCancel">Cancel</button>
+      <button class="go" id="addSave" disabled>Add</button>
     </div>
   </div>
 </div>
@@ -333,10 +400,22 @@ const ITEMS = [
 const KEY = 'qbo.v1';
 const $ = id => document.getElementById(id);
 
-let state = {date:'', qty:{}};
+let state = {date:'', qty:{}, custom:[]};
 try { Object.assign(state, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch(e){}
 if (!state.qty) state.qty = {};
+if (!state.custom) state.custom = [];
 if (!state.date) state.date = new Date().toLocaleDateString('en-US',{month:'long',day:'numeric'});
+
+function mergedItems(){
+  const merged = ITEMS.map(s => ({name:s.name, items:s.items.slice()}));
+  for (const c of state.custom){
+    const existing = merged.find(s => s.name === c.section);
+    if (existing){ if (!existing.items.includes(c.item)) existing.items.push(c.item); }
+    else merged.push({name:c.section, items:[c.item]});
+  }
+  return merged;
+}
+function isCustom(sku){ return state.custom.some(c => c.item === sku); }
 
 let filtered = false;
 const save = () => { try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){} };
@@ -347,8 +426,9 @@ function build(){
   const list = $('list');
   list.textContent = '';
   let shown = 0;
+  const all = mergedItems();
 
-  for (const sec of ITEMS){
+  for (const sec of all){
     const rows = sec.items.filter(sku => !filtered || qtyOf(sku) > 0);
     if (!rows.length) continue;
     shown += rows.length;
@@ -409,6 +489,22 @@ function rowEl(sku){
 
   step.append(minus, input, plus);
   row.append(name, step);
+
+  if (isCustom(sku)){
+    row.classList.add('custom');
+    const del = document.createElement('button');
+    del.className = 'del-custom'; del.type = 'button';
+    del.textContent = '×';
+    del.setAttribute('aria-label','Remove custom item ' + sku);
+    del.addEventListener('click', () => {
+      if (!confirm('Remove "' + sku + '" from the list?')) return;
+      state.custom = state.custom.filter(c => c.item !== sku);
+      delete state.qty[sku];
+      save(); build();
+    });
+    row.appendChild(del);
+  }
+
   return row;
 }
 
@@ -428,15 +524,15 @@ function setQty(sku, v, row, input, minus){
   minus.disabled = v === 0;
   const h = sectionHeaderFor(sku);
   if (h){
-    const sec = ITEMS.find(s => s.name === h.dataset.sec);
-    const n = sec.items.reduce((t,s)=>t+qtyOf(s),0);
+    const sec = mergedItems().find(s => s.name === h.dataset.sec);
+    const n = sec ? sec.items.reduce((t,s)=>t+qtyOf(s),0) : 0;
     h.querySelector('.sec-count').textContent = n ? n : '';
   }
   tally();
 }
 
 function sectionHeaderFor(sku){
-  const sec = ITEMS.find(s => s.items.includes(sku));
+  const sec = mergedItems().find(s => s.items.includes(sku));
   if (!sec) return null;
   return [...document.querySelectorAll('.sec-h')].find(h => h.dataset.sec === sec.name);
 }
@@ -455,7 +551,7 @@ function tally(){
 function orderText(){
   const out = ['Quality Order - ' + (state.date || '')];
   let cases = 0;
-  for (const sec of ITEMS){
+  for (const sec of mergedItems()){
     const picked = sec.items.filter(s => qtyOf(s) > 0);
     if (!picked.length) continue;
     out.push('');
@@ -516,6 +612,60 @@ $('wipe').addEventListener('click', () => {
   window.scrollTo(0,0);
   toast('Order cleared');
 });
+
+/* ---------- add item ---------- */
+function populateSections(){
+  const sel = $('addSec');
+  sel.textContent = '';
+  const names = mergedItems().map(s => s.name);
+  for (const n of names){
+    const o = document.createElement('option'); o.value = n; o.textContent = n;
+    sel.appendChild(o);
+  }
+  const nw = document.createElement('option'); nw.value = '__new__'; nw.textContent = '+ New section…';
+  sel.appendChild(nw);
+}
+
+$('addBtn').addEventListener('click', () => {
+  populateSections();
+  $('addSec').value = mergedItems()[0]?.name || '__new__';
+  $('newSecWrap').style.display = 'none';
+  $('newSec').value = '';
+  $('addItem').value = '';
+  $('addSave').disabled = true;
+  $('addScrim').classList.add('open');
+});
+
+$('addSec').addEventListener('change', () => {
+  $('newSecWrap').style.display = $('addSec').value === '__new__' ? '' : 'none';
+  checkAddReady();
+});
+
+$('addItem').addEventListener('input', checkAddReady);
+$('newSec').addEventListener('input', checkAddReady);
+
+function checkAddReady(){
+  const sec = $('addSec').value === '__new__' ? $('newSec').value.trim() : $('addSec').value;
+  $('addSave').disabled = !sec || !$('addItem').value.trim();
+}
+
+$('addSave').addEventListener('click', () => {
+  const sec = $('addSec').value === '__new__' ? $('newSec').value.trim().toUpperCase() : $('addSec').value;
+  const item = $('addItem').value.trim().toUpperCase();
+  if (!sec || !item) return;
+  const all = mergedItems();
+  const existing = all.find(s => s.name === sec);
+  if (existing && existing.items.includes(item)){ toast('Already exists'); return; }
+  state.custom.push({section:sec, item:item});
+  save(); build();
+  $('addScrim').classList.remove('open');
+  toast('Added');
+});
+
+function closeAdd(){ $('addScrim').classList.remove('open'); }
+$('addClose').addEventListener('click', closeAdd);
+$('addCancel').addEventListener('click', closeAdd);
+$('addScrim').addEventListener('click', e => { if (e.target === $('addScrim')) closeAdd(); });
 
 /* keep sticky section headers pinned right under the real header height,
    which varies with the iPhone safe-area inset */

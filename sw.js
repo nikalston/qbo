@@ -1,5 +1,5 @@
 /* bumped automatically by build_pwa.py */
-const CACHE = 'qbo-d4132648';
+const CACHE = 'qbo-add-items-v3';
 const ASSETS = [
   './', './index.html', './manifest.webmanifest',
   './icon-192.png', './icon-512.png', './icon-512-maskable.png', './icon-180.png'
