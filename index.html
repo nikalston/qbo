@@ -501,7 +501,7 @@ try { Object.assign(state, JSON.parse(localStorage.getItem(KEY) || '{}')); } cat
 if (!state.qty) state.qty = {};
 if (!state.custom) state.custom = [];
 if (!state.deleted) state.deleted = [];
-if (!state.date) state.date = new Date().toLocaleDateString('en-US',{month:'long',day:'numeric'});
+state.date = new Date().toLocaleDateString('en-US',{month:'long',day:'numeric'});
 
 state.custom = state.custom.filter(c => {
   const s = ITEMS.find(s => s.name === c.section);
@@ -518,7 +518,7 @@ openDB().then(db => {
   if (!state.qty) state.qty = {};
   if (!state.custom) state.custom = [];
   if (!state.deleted) state.deleted = [];
-  if (!state.date) state.date = new Date().toLocaleDateString('en-US',{month:'long',day:'numeric'});
+  state.date = new Date().toLocaleDateString('en-US',{month:'long',day:'numeric'});
   state.custom = state.custom.filter(c => {
     const s = ITEMS.find(s => s.name === c.section);
     return !s || !s.items.includes(c.item);

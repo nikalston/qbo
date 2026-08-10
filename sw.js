@@ -1,5 +1,5 @@
 /* bumped automatically by build_pwa.py */
-const CACHE = 'qbo-0dbff6fa';
+const CACHE = 'qbo-efebf1e1';
 const ASSETS = [
   './', './index.html', './manifest.webmanifest',
   './icon-192.png', './icon-512.png', './icon-512-maskable.png', './icon-180.png'
