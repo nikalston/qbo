@@ -58,6 +58,16 @@ def main():
     )
     if n != 1:
         sys.exit("could not find the ITEMS_START / ITEMS_END markers in index.html")
+    # --- bump version stamp ---
+    ver_match = re.search(r"\$\('ver'\)\.textContent = 'v(\d+)';", html)
+    ver = int(ver_match.group(1)) + 1 if ver_match else 1
+    html = re.sub(
+        r"// VERSION_STAMP.*?// VERSION_END",
+        f"// VERSION_STAMP\n$('ver').textContent = 'v{ver}';\n// VERSION_END",
+        html,
+        flags=re.S,
+    )
+
     open(idx, "w", encoding="utf-8").write(html)
 
     # --- bump the cache name (hash full HTML so any code change busts cache) ---

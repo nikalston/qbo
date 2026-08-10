@@ -51,6 +51,7 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
   font-size:13px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
   color:var(--amber);
 }
+.ver{font-size:10px;font-weight:400;letter-spacing:.05em;color:var(--muted)}
 .datefield{
   font-size:13px;color:var(--muted);background:transparent;border:none;
   text-align:right;width:130px;padding:2px 0;
@@ -239,7 +240,7 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 
 <header class="hdr">
   <div class="hdr-top">
-    <span class="brand">Quality Beverage</span>
+    <span class="brand">Quality Beverage <span class="ver" id="ver"></span></span>
     <input class="datefield" id="date" type="text" inputmode="text" spellcheck="false" placeholder="date">
   </div>
   <div class="tally">
@@ -852,6 +853,9 @@ window.addEventListener('orientationchange', () => setTimeout(syncHeaderH, 250))
 
 build();
 syncPending();
+// VERSION_STAMP
+$('ver').textContent = 'v1';
+// VERSION_END
 
 if ('serviceWorker' in navigator){
   window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
