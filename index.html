@@ -314,14 +314,12 @@ const ITEMS = [
       "BUD LIGHT 18/CAN 12oz",
       "BUD LIGHT 30/CAN 12oz",
       "BUD LIGHT LIME 4/6 NR",
-      "BUD ZERO 2/12 CAN 12oz",
       "BUDWEISER 2/12 CAN 12oz",
       "BUDWEISER 30/CAN 12oz",
       "BUDWEISER 4/6 CAN 12oz",
       "BUDWEISER 4/6 NR 12oz",
       "BUSCH 30/CAN 12oz",
-      "BUSCH LIGHT 30/CAN 12oz",
-      "BUSCH N/A 2/12 CAN 12oz"
+      "BUSCH LIGHT 30/CAN 12oz"
     ]
   },
   {
@@ -339,8 +337,6 @@ const ITEMS = [
       "MICH ULTRA 18/CAN 12oz",
       "MICH ULTRA 24/CAN 12oz",
       "MICH ULTRA ORGANIC PP 4/6 NR",
-      "MICH ULTRA ZERO 2/12 CAN 12oz",
-      "MICH ULTRA ZERO LIME NA 4/6 NR",
       "MICH ULTRA 4/6 NR 12OZ"
     ]
   },
@@ -403,9 +399,18 @@ const ITEMS = [
     ]
   },
   {
-    "name": "N/A & SINGLES",
+    "name": "NON-ALCOHOLIC",
     "items": [
-      "O'DOULS 4/6 NR",
+      "BUD ZERO 2/12 CAN 12oz",
+      "BUSCH N/A 2/12 CAN 12oz",
+      "MICH ULTRA ZERO 2/12 CAN 12oz",
+      "MICH ULTRA ZERO LIME NA 4/6 NR",
+      "O'DOULS 4/6 NR"
+    ]
+  },
+  {
+    "name": "SINGLES",
+    "items": [
       "MASSHOLE LIGHT 12/CAN",
       "KIRIN ICHIBAN 6PK BOTTLES"
     ]
@@ -854,7 +859,7 @@ window.addEventListener('orientationchange', () => setTimeout(syncHeaderH, 250))
 build();
 syncPending();
 // VERSION_STAMP
-$('ver').textContent = 'v1';
+$('ver').textContent = 'v2';
 // VERSION_END
 
 if ('serviceWorker' in navigator){
