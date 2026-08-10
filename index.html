@@ -233,6 +233,20 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
   opacity:0;pointer-events:none;transition:opacity .18s;
 }
 .toast.show{opacity:1}
+.update-bar{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  padding:calc(10px + env(safe-area-inset-top)) 16px 10px;
+  background:var(--green);color:#FFFFFF;
+  font-size:14px;font-weight:600;
+  transform:translateY(-100%);transition:transform .3s;
+}
+.update-bar.show{transform:translateY(0)}
+.update-bar button{
+  padding:5px 14px;border-radius:8px;
+  background:#FFFFFF;color:var(--green);
+  font-size:13px;font-weight:700;
+}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -299,6 +313,10 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
   </div>
 </div>
 
+<div class="update-bar" id="updateBar">
+  New version available
+  <button id="updateBtn">Reload</button>
+</div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -862,11 +880,29 @@ window.addEventListener('orientationchange', () => setTimeout(syncHeaderH, 250))
 build();
 syncPending();
 // VERSION_STAMP
-$('ver').textContent = 'v3';
+$('ver').textContent = 'v4';
 // VERSION_END
 
 if ('serviceWorker' in navigator){
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').then(reg => {
+      reg.update().catch(()=>{});
+      reg.addEventListener('updatefound', () => {
+        const nw = reg.installing;
+        if (!nw) return;
+        nw.addEventListener('statechange', () => {
+          if (nw.state === 'installed' && navigator.serviceWorker.controller)
+            $('updateBar').classList.add('show');
+        });
+      });
+    }).catch(()=>{});
+    navigator.serviceWorker.addEventListener('controllerchange', () => location.reload());
+  });
+  $('updateBtn').addEventListener('click', () => {
+    navigator.serviceWorker.getRegistration().then(reg => {
+      if (reg && reg.waiting) reg.waiting.postMessage({type:'skipWaiting'});
+    });
+  });
 }
 </script>
 </body>
