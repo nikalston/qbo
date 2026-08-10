@@ -1,8 +1,8 @@
 /* bumped automatically by build_pwa.py */
-const CACHE = 'qbo-b27faee8';
+const CACHE = 'qbo-xp-c2bf3a0e';
 const ASSETS = [
   './', './index.html', './manifest.webmanifest',
-  './icon-192.png', './icon-512.png', './icon-512-maskable.png', './icon-180.png'
+  '../icon-192.png', '../icon-512.png', '../icon-512-maskable.png', '../icon-180.png'
 ];
 
 self.addEventListener('install', e => {

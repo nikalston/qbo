@@ -77,6 +77,35 @@ def main():
     sw = re.sub(r"const CACHE = '[^']*';", f"const CACHE = 'qbo-{stamp}';", sw, count=1)
     open(swp, "w", encoding="utf-8").write(sw)
 
+    # --- XP theme variant ---
+    xp_idx = os.path.join(HERE, "xp", "index.html")
+    if os.path.exists(xp_idx):
+        xp_html = open(xp_idx, encoding="utf-8").read()
+        xp_html, xn = re.subn(
+            r"// ITEMS_START.*?// ITEMS_END",
+            lambda _: new_block,
+            xp_html,
+            flags=re.S,
+        )
+        if xn == 1:
+            xp_ver_match = re.search(r"\$\('ver'\)\.textContent = 'v(\d+)';", xp_html)
+            xp_ver = int(xp_ver_match.group(1)) + 1 if xp_ver_match else 1
+            xp_html = re.sub(
+                r"// VERSION_STAMP.*?// VERSION_END",
+                f"// VERSION_STAMP\n$('ver').textContent = 'v{xp_ver}';\n// VERSION_END",
+                xp_html,
+                flags=re.S,
+            )
+            open(xp_idx, "w", encoding="utf-8").write(xp_html)
+
+            xp_stamp = hashlib.sha1(xp_html.encode("utf-8")).hexdigest()[:8]
+            xp_swp = os.path.join(HERE, "xp", "sw.js")
+            if os.path.exists(xp_swp):
+                xp_sw = open(xp_swp, encoding="utf-8").read()
+                xp_sw = re.sub(r"const CACHE = '[^']*';", f"const CACHE = 'qbo-xp-{xp_stamp}';", xp_sw, count=1)
+                open(xp_swp, "w", encoding="utf-8").write(xp_sw)
+            print(f"  xp: cache qbo-xp-{xp_stamp}")
+
     print(f"built: {len(data)} sections, {n_items} SKUs, cache qbo-{stamp}")
 
 
