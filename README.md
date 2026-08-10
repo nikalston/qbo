@@ -78,3 +78,9 @@ so one edit keeps both in sync.
 - There's no undo beyond stepping the number back down.
 - No sync, no account, no server. The order lives on that one phone until you
   copy it out.
+
+## Changelog
+
+- **v2** — Moved all non-alcoholic items (Bud Zero, Busch N/A, Mich Ultra Zero, Mich Ultra Zero Lime, O'Douls) into their own **NON-ALCOHOLIC** section. Renamed old N/A & SINGLES to **SINGLES**.
+- **v1** — Added version number to header (auto-increments on each build). Fixed date field to always show today's date instead of persisting from last session. Added new products: Wormtown Be Berry, Be Juicy; Nutrl Orange, Strawberry; Bud Light 18/CAN; Mich Ultra 24/CAN; Mich Ultra 4/6 NR; Busch 30/CAN; Budweiser 4/6 NR.
+- **Initial** — Swipe-left-to-delete on any item row. Add items permanently via GitHub API. IndexedDB persistence for iOS Safari. Light theme. Section subtotals. Ordered-only filter. Review/copy/share order. Offline-capable PWA.
